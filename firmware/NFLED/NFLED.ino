@@ -19,6 +19,8 @@ static const uint16_t PROGMEM
         0x111, 0x222, 0x333, 0x444, 0x666, 0x888, 0xAAA, 0xFFF,
 };
 
+static uint16_t bmp_slide[64] = {0};
+
 #define MATRIX_WIDTH 8
 #define MATRIX_HEIGHT 8
 
@@ -27,12 +29,20 @@ Adafruit_NeoMatrix *matrix = new Adafruit_NeoMatrix(8, 8, PIN,
   NEO_MATRIX_COLUMNS + NEO_MATRIX_PROGRESSIVE,
   NEO_GRB            + NEO_KHZ800);
 
+void slide(int8_t x_offset, int8_t y_offset, const uint16_t* src) {
+  for (int i=0; i<MATRIX_WIDTH; i++) {
+    for (int j=0; j<MATRIX_HEIGHT; j++) {
+      bmp_slide[i*8+j] = pgm_read_word(src + i*8+j);
+    }
+  }
+}
+
 // Convert a BGR 4/4/4 bitmap to RGB 5/6/5 used by Adafruit_GFX
-void fixdrawRGBBitmap(int16_t x, int16_t y, const uint16_t *bitmap, int16_t w, int16_t h, uint8_t x_offset) {
+void fixdrawRGBBitmap(int16_t x, int16_t y, const uint16_t *bitmap, int16_t w, int16_t h) {
     static uint16_t *RGB_bmp_fixed = (uint16_t *) malloc( w*h*2);
     for (uint16_t pixel=0; pixel<w*h; pixel++) {
         uint8_t r,g,b;
-        uint16_t color = pgm_read_word(bitmap + pixel);
+        uint16_t color = bitmap[pixel];
         b = (color & 0xF00) >> 8;
         g = (color & 0x0F0) >> 4;
         r = color & 0x00F;
@@ -41,22 +51,19 @@ void fixdrawRGBBitmap(int16_t x, int16_t y, const uint16_t *bitmap, int16_t w, i
         r = map(r, 0, 15, 0, 31);
         RGB_bmp_fixed[pixel] = (r << 11) + (g << 5) + b;
     }
-    x = x + x_offset;
-    if (x <= w) {
-        matrix->drawRGBBitmap(x, y, RGB_bmp_fixed, w, h);
-    } else {
-        matrix->drawRGBBitmap(x - x_offset - 1, y, RGB_bmp_fixed, w, h);
-    }
-    
+    matrix->drawRGBBitmap(x, y, RGB_bmp_fixed, w, h);
 }
 
 void display_rgbBitmap(uint8_t x_offset) { 
     matrix->clear();
-    fixdrawRGBBitmap(0, 0, RGB_bmp, MATRIX_WIDTH, MATRIX_HEIGHT, x_offset);
+    slide(x_offset, 0, RGB_bmp);
+    fixdrawRGBBitmap(0, 0, bmp_slide, MATRIX_WIDTH, MATRIX_HEIGHT);
     matrix->show();
 }
 
 void setup() {
+  Serial.begin(9600);
+  Serial.println("start");
   matrix->begin();
   matrix->setTextWrap(false);
 //  matrix->setBrightness(40);
