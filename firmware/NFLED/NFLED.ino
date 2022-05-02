@@ -24,15 +24,26 @@ static uint16_t bmp_slide[64] = {0};
 #define MATRIX_WIDTH 8
 #define MATRIX_HEIGHT 8
 
-Adafruit_NeoMatrix *matrix = new Adafruit_NeoMatrix(8, 8, PIN,
+Adafruit_NeoMatrix *matrix = new Adafruit_NeoMatrix(MATRIX_WIDTH, MATRIX_HEIGHT, PIN,
   NEO_MATRIX_TOP     + NEO_MATRIX_RIGHT +
   NEO_MATRIX_COLUMNS + NEO_MATRIX_PROGRESSIVE,
   NEO_GRB            + NEO_KHZ800);
 
 void slide(int8_t x_offset, int8_t y_offset, const uint16_t* src) {
+  uint8_t dx, dy = 0;
   for (int i=0; i<MATRIX_WIDTH; i++) {
     for (int j=0; j<MATRIX_HEIGHT; j++) {
-      bmp_slide[i*8+j] = pgm_read_word(src + i*8+j);
+      if (i-x_offset < 0) {
+        dx = i-x_offset+MATRIX_WIDTH;
+      } else {
+        dx = i-x_offset;
+      }
+      if (j-y_offset < 0) {
+        dy = j-y_offset+MATRIX_HEIGHT;
+      } else {
+        dy = j-y_offset;
+      }
+      bmp_slide[dx*8+dy] = pgm_read_word(src + i*8+j);
     }
   }
 }
@@ -54,9 +65,9 @@ void fixdrawRGBBitmap(int16_t x, int16_t y, const uint16_t *bitmap, int16_t w, i
     matrix->drawRGBBitmap(x, y, RGB_bmp_fixed, w, h);
 }
 
-void display_rgbBitmap(uint8_t x_offset) { 
+void display_rgbBitmap(uint8_t x_offset, uint8_t y_offset) { 
     matrix->clear();
-    slide(x_offset, 0, RGB_bmp);
+    slide(x_offset, y_offset, RGB_bmp);
     fixdrawRGBBitmap(0, 0, bmp_slide, MATRIX_WIDTH, MATRIX_HEIGHT);
     matrix->show();
 }
@@ -70,11 +81,16 @@ void setup() {
 }
 
 int x = 0;
+int y = 0;
 void loop() {
-  display_rgbBitmap(x);
-  delay(500);
+  display_rgbBitmap(x, y);
   x++;
+  y++;
   if (x >= MATRIX_WIDTH) {
     x = 0;
   }
+  if (y >= MATRIX_HEIGHT) {
+    y = 0;
+  }
+  delay(500);
 }
