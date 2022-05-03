@@ -9,15 +9,29 @@
 
 static const uint16_t PROGMEM
     RGB_bmp[64] =
-      { 0x100, 0x200, 0x300, 0x400, 0x600, 0x800, 0xA00, 0xF00, 
-        0x101, 0x202, 0x303, 0x404, 0x606, 0x808, 0xA0A, 0xF0F, 
-        0x001, 0x002, 0x003, 0x004, 0x006, 0x008, 0x00A, 0x00F, 
-        0x011, 0x022, 0x033, 0x044, 0x066, 0x088, 0x0AA, 0x0FF, 
-        0x010, 0x020, 0x030, 0x040, 0x060, 0x080, 0x0A0, 0x0F0, 
-        0x110, 0x220, 0x330, 0x440, 0x660, 0x880, 0xAA0, 0xFF0, 
-        0x100, 0x200, 0x300, 0x400, 0x600, 0x800, 0xA00, 0xF00, 
-        0x111, 0x222, 0x333, 0x444, 0x666, 0x888, 0xAAA, 0xFFF,
+      { 
+0x528, 0xe29, 0xd05, 0x086, 0xba9, 0x305, 0x346, 0x1cb, 
+0x1e7, 0x5eb, 0x7f0, 0x395, 0x433, 0xc03, 0xe76, 0xa41, 
+0x198, 0x788, 0x6af, 0x767, 0xd7a, 0x9, 0x57f, 0x188, 
+0x7a8, 0xBF1, 0x9b1, 0x4fC, 0x0dF, 0x6Fd, 0x9B2, 0xacc,
+0x528, 0xe29, 0xd05, 0x086, 0xba9, 0x305, 0x346, 0x1cb, 
+0x1e7, 0x5eb, 0x7f0, 0x395, 0x433, 0xc03, 0xe76, 0xa41, 
+0x198, 0x788, 0x6af, 0x767, 0xd7a, 0x9, 0x57f, 0x188, 
+0x7a8, 0xBF1, 0x9b1, 0x4fC, 0x0dF, 0x6Fd, 0x9B2, 0xacc,
 };
+
+static uint32_t RAMDOM_SEED = 0x9Af1;
+static uint8_t INITIAL_DIR = 0x4; // 0~7
+static uint8_t DIR_CHANGE_PERCENT = 10;
+static uint16_t INITIAL_SPEED = 0x7e; // 0~255 -> x5msec
+static uint32_t SPEED_DIFF_RANGE = 30;
+static uint32_t SPEED_MIN = 50;
+static uint32_t SPEED_MAX = 2000;
+
+int8_t curr_dir = 0;
+uint16_t curr_speed = 100;
+int dir_x = 0;
+int dir_y = 0;
 
 static uint16_t bmp_slide[64] = {0};
 
@@ -72,25 +86,104 @@ void display_rgbBitmap(uint8_t x_offset, uint8_t y_offset) {
     matrix->show();
 }
 
+void update_dir() {
+  int p = random(100);
+  if (p < DIR_CHANGE_PERCENT) {
+    // change dir
+    if (p%2) {
+      // CW
+      curr_dir++;
+      if (curr_dir > 7) {curr_dir = 0;}
+    } else {
+      // CCW
+      curr_dir--;
+      if (curr_dir < 0) {curr_dir = 7;}
+    }
+  }
+
+  switch (curr_dir) {
+    case 0:
+      dir_x = dir_x;
+      dir_y = dir_y+1;
+      break;  
+    case 1:
+      dir_x = dir_x+1;
+      dir_y = dir_y+1;
+      break;
+    case 2:
+      dir_x = dir_x+1;
+      dir_y = dir_y;
+      break;
+    case 3:
+      dir_x = dir_x+1;
+      dir_y = dir_y-1;
+      break;
+    case 4:
+      dir_x = dir_x;
+      dir_y = dir_y-1;
+      break;
+    case 5:
+      dir_x = dir_x-1;
+      dir_y = dir_y-1;
+      break;
+    case 6:
+      dir_x = dir_x-1;
+      dir_y = dir_y;
+      break;
+    case 7:
+      dir_x = dir_x-1;
+      dir_y = dir_y+1;
+      break;
+  }
+
+  if (dir_x >= MATRIX_WIDTH) {
+    dir_x = 0;
+  } else if (dir_x < 0) {
+    dir_x = MATRIX_WIDTH - 1;
+  }
+  if (dir_y >= MATRIX_HEIGHT) {
+    dir_y = 0;
+  } else if (dir_y < 0) {
+    dir_y = MATRIX_HEIGHT - 1;
+  }
+  Serial.print("dir:");
+  Serial.println(curr_dir);
+//  Serial.print("dir_x:");
+//  Serial.println(dir_x);
+//  Serial.print("dir_y:");
+//  Serial.println(dir_y);
+}
+
+void update_speed() {
+  int d = random(1, SPEED_DIFF_RANGE) - SPEED_DIFF_RANGE/2;
+  curr_speed += d;
+  if (curr_speed >= SPEED_MAX) {
+    curr_speed = SPEED_MAX;
+  }
+  if (curr_speed <= SPEED_MIN) {
+    curr_speed = SPEED_MIN;
+  }  
+//  Serial.print("speed:");
+//  Serial.println(curr_speed);
+}
+
 void setup() {
   Serial.begin(9600);
   Serial.println("start");
+  randomSeed(RAMDOM_SEED);
+
+  curr_speed = INITIAL_SPEED * 5;
+  curr_dir = INITIAL_DIR % 7;
+  
   matrix->begin();
   matrix->setTextWrap(false);
-//  matrix->setBrightness(40);
+  matrix->setBrightness(40);
 }
 
-int x = 0;
-int y = 0;
 void loop() {
-  display_rgbBitmap(x, y);
-  x++;
-  y++;
-  if (x >= MATRIX_WIDTH) {
-    x = 0;
-  }
-  if (y >= MATRIX_HEIGHT) {
-    y = 0;
-  }
-  delay(500);
+  update_dir();
+  update_speed();
+  display_rgbBitmap(dir_x, dir_y);
+
+  delay(curr_speed);
 }
